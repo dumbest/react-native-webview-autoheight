@@ -19,6 +19,18 @@ import {
 } from 'react-native';
 
 const injectedScript = function() {
+  // Modification start
+  // https://github.com/scazzy/react-native-webview-autoheight/issues/19#issuecomment-434733524
+  const originalPostMessage = window.postMessage;
+  const patchedPostMessage = function (message, targetOrigin, transfer) {
+    originalPostMessage(message, targetOrigin, transfer);
+  };
+  patchedPostMessage.toString = function () {
+    return String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage');
+  };
+  window.postMessage = patchedPostMessage;
+  // Modification end
+  
   function waitForBridge() {
     if (window.postMessage.length !== 1){
       setTimeout(waitForBridge, 200);
@@ -41,7 +53,8 @@ const injectedScript = function() {
 
 export default class MyWebView extends Component {
   state = {
-    webViewHeight: Number
+    webViewHeight: Number,
+    defaultHeight: 100,
   };
 
   static defaultProps = {
