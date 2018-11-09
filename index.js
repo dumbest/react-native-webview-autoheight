@@ -16,19 +16,22 @@ import {
   View,
   Dimensions,
   WebView,
+  Platform
 } from 'react-native';
 
 const injectedScript = function() {
   // Modification start
   // https://github.com/scazzy/react-native-webview-autoheight/issues/19#issuecomment-434733524
-  const originalPostMessage = window.postMessage;
-  const patchedPostMessage = function (message, targetOrigin, transfer) {
-    originalPostMessage(message, targetOrigin, transfer);
-  };
-  patchedPostMessage.toString = function () {
-    return String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage');
-  };
-  window.postMessage = patchedPostMessage;
+  if (Platform.OS === 'android') {
+    const originalPostMessage = window.postMessage;
+    const patchedPostMessage = function (message, targetOrigin, transfer) {
+      originalPostMessage(message, targetOrigin, transfer);
+    };
+    patchedPostMessage.toString = function () {
+      return String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage');
+    };
+    window.postMessage = patchedPostMessage;
+  }
   // Modification end
   
   function waitForBridge() {
