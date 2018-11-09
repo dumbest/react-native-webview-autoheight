@@ -19,7 +19,7 @@ import {
   Platform
 } from 'react-native';
 
-const injectedScript = function() {
+const injectedScriptAndroid = function() {
   // Modification start
   // https://github.com/scazzy/react-native-webview-autoheight/issues/19#issuecomment-434733524
   if (Platform.OS === 'android') {
@@ -46,6 +46,25 @@ const injectedScript = function() {
       }
       else
       {
+        height = document.body.clientHeight
+      }
+      postMessage(height)
+    }
+  }
+  waitForBridge();
+};
+
+const injectedScriptIOS = function () {
+  function waitForBridge() {
+    if (window.postMessage.length !== 1) {
+      setTimeout(waitForBridge, 200);
+    }
+    else {
+      let height = 0;
+      if (document.documentElement.clientHeight > document.body.clientHeight) {
+        height = document.documentElement.clientHeight
+      }
+      else {
         height = document.body.clientHeight
       }
       postMessage(height)
@@ -86,6 +105,12 @@ export default class MyWebView extends Component {
   render () {
     const _w = this.props.width || Dimensions.get('window').width;
     const _h = this.props.autoHeight ? this.state.webViewHeight : this.props.defaultHeight;
+    
+    const injectedScript = Platform.select({
+      ios: injectedScriptIOS,
+      android: injectedScriptAndroid
+    });
+    
     return (
       <WebView
         ref={(ref) => { this.webview = ref; }}
