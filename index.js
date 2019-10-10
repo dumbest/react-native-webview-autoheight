@@ -16,58 +16,19 @@ import {
   View,
   Dimensions,
   WebView,
-  Platform
+  Platform,
 } from 'react-native';
+import PropTypes from "prop-types";
 
-const injectedScriptAndroid = function() {
-  // Modification start
-  // https://github.com/scazzy/react-native-webview-autoheight/issues/19#issuecomment-434733524
-  if (Platform.OS === 'android') {
-    const originalPostMessage = window.postMessage;
-    const patchedPostMessage = function (message, targetOrigin, transfer) {
-      originalPostMessage(message, targetOrigin, transfer);
-    };
-    patchedPostMessage.toString = function () {
-      return String(Object.hasOwnProperty).replace('hasOwnProperty', 'postMessage');
-    };
-    window.postMessage = patchedPostMessage;
-  }
-  // Modification end
-  
+const injectedScript = function() {
   function waitForBridge() {
     if (window.postMessage.length !== 1){
       setTimeout(waitForBridge, 200);
     }
     else {
-      let height = 0;
-      if(document.documentElement.clientHeight>document.body.clientHeight)
-      {
-        height = document.documentElement.clientHeight
-      }
-      else
-      {
-        height = document.body.clientHeight
-      }
-      postMessage(height)
-    }
-  }
-  waitForBridge();
-};
-
-const injectedScriptIOS = function () {
-  function waitForBridge() {
-    if (window.postMessage.length !== 1) {
-      setTimeout(waitForBridge, 200);
-    }
-    else {
-      let height = 0;
-      if (document.documentElement.clientHeight > document.body.clientHeight) {
-        height = document.documentElement.clientHeight
-      }
-      else {
-        height = document.body.clientHeight
-      }
-      postMessage(height)
+      postMessage(
+        Math.max(document.documentElement.clientHeight, document.documentElement.scrollHeight, document.body.clientHeight, document.body.scrollHeight)
+      )
     }
   }
   waitForBridge();
@@ -75,13 +36,17 @@ const injectedScriptIOS = function () {
 
 export default class MyWebView extends Component {
   state = {
-    webViewHeight: Number,
-    defaultHeight: 100,
+    webViewHeight: Number
+  };
+
+  static propTypes = {
+    onMessage: PropTypes.func
   };
 
   static defaultProps = {
-      autoHeight: true,
-  }
+    autoHeight: true,
+    onMessage: () => {}
+  };
 
   constructor (props: Object) {
     super(props);
@@ -93,35 +58,37 @@ export default class MyWebView extends Component {
   }
 
   _onMessage(e) {
+    const { onMessage } = this.props;
     this.setState({
       webViewHeight: parseInt(e.nativeEvent.data)
     });
+    onMessage(e);
   }
 
   stopLoading() {
     this.webview.stopLoading();
   }
 
+  reload() {
+    this.webview.reload();
+  }
+
   render () {
     const _w = this.props.width || Dimensions.get('window').width;
     const _h = this.props.autoHeight ? this.state.webViewHeight : this.props.defaultHeight;
-    
-    const injectedScript = Platform.select({
-      ios: injectedScriptIOS,
-      android: injectedScriptAndroid
-    });
-    
+    const androidScript = 'window.postMessage = String(Object.hasOwnProperty).replace(\'hasOwnProperty\', \'postMessage\');' +
+    '(' + String(injectedScript) + ')();';
+    const iosScript = '(' + String(injectedScript) + ')();' + 'window.postMessage = String(Object.hasOwnProperty).replace(\'hasOwnProperty\', \'postMessage\');';
     return (
       <WebView
         ref={(ref) => { this.webview = ref; }}
-        injectedJavaScript={'(' + String(injectedScript) + ')();' +
-          'window.postMessage = String(Object.hasOwnProperty).replace(\'hasOwnProperty\', \'postMessage\');'}
+        injectedJavaScript={Platform.OS === 'ios' ? iosScript : androidScript}
         scrollEnabled={this.props.scrollEnabled || false}
-        onMessage={this._onMessage}
         javaScriptEnabled={true}
         automaticallyAdjustContentInsets={true}
         {...this.props}
-        style={[{width: _w}, this.props.style, {height: _h}]}
+	onMessage={this._onMessage}
+	style={[{ width: _w }, this.props.style, { height: _h }]}
       />
     )
   }
